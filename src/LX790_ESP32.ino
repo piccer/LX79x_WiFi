@@ -9,6 +9,8 @@
 #include <WebServer.h>
 #include "SPIFFS.h"
 #include <Update.h>
+#include <PubSubClient.h>
+#include <HTTPClient.h>
 
 //Hardware  
 #define SDA_PIN_MAINBOARD    33  /*default 21*/
@@ -38,14 +40,21 @@
 #define BTN_BYTE1_HOME        0x04
 #define BTN_BYTE2_STOP        0xFC
 
-const char* ssid     = "DEINESSID";
-const char* password = "DEINPASSWORT";
-const char* hostname = "LX790 lawn mower";
+const char* ssid     = "ssid";
+const char* password = "pass";
+const char* hostname = "LX790";
+const char* TriggerURL = "http://FHEM/fhem?cmd=set%20ROBBI%20reread&XHR=1";
+//const char* mqtt_server = "192.168.1.x";
+//const char* MQTT_ID = "LX790";
+//const char* outTopic = "outTopic";
+//const char* inTopic = "inTopic";
+
+//WiFiClient espClient;
+//PubSubClient client(espClient); //lib required for mqtt
 
 WebServer server1(80);
-WebServer server2(81);
-WebServer server3(82);
-WebServer *pserver[] = { &server1, &server2, &server3, nullptr };
+
+WebServer *pserver[] = { &server1, nullptr };
 
 TaskHandle_t hTask0;   //Hardware: I2C, WiFi...
 TaskHandle_t hTask1;   //Web...
@@ -57,6 +66,7 @@ static struct
 {
   char    WebOutDisplay[100];
   char    AktDisplay[4+1];
+  char    OldDisplay[4+1];
   unsigned long WebInButtonTime[5 /* io, start, home, ok, stop */];
   int     WebInButtonState[5 /* io, start, home, ok, stop */];
   int     Lst_err;
@@ -135,11 +145,9 @@ char * GetStatustext (void)
     }
     else
     {
-      strcpy(thExchange.AktDisplay, LetterOrNumber (thExchange.AktDisplay));
       strcpy(statustxt, DecodeMsg (thExchange.AktDisplay));  
     }
   }
-  
   return statustxt; 
 }
 
@@ -184,7 +192,6 @@ void Web_aktStatusValues(WebServer *svr)
   
   if (thExchange.point != ' ')
     sprintf(point, "%c", thExchange.point);
-
   sprintf(out, "%c%c%s%c%c;%ld;%s;%s",
           thExchange.AktDisplay[0],
           thExchange.AktDisplay[1],
@@ -385,6 +392,8 @@ void Task1( void * pvParameters )
       for (s=0; pserver[s]; s++)
       {
         pserver[s]->handleClient();
+        //hier könnte MQTT client aufgerufen werden...
+        //client.loop();
       }
     }
     delay(10);
@@ -453,8 +462,14 @@ void Task0( void * pvParameters )
       if (WiFi.status() == WL_CONNECTED)
       {
         WiFi_WasConnected = 1;
-        Serial.print  (F("WiFi successfully connected with IP: "));
+        Serial.print  (F("WiFi successfully connected with IP: "));        
         Serial.println(WiFi.localIP());
+  //mqtt:
+//        client.setServer(mqtt_server, 1883);//connecting to mqtt server
+//        client.setCallback(callback);
+        //delay(5000);
+//        connectmqtt();
+  //mqtt ende
       }
       else if (millis() - Lst_WiFi_Status > 1000)
       {
@@ -850,7 +865,28 @@ void Task0( void * pvParameters )
           DecodeChar (DatMainboard[2]),
           DecodeChar (DatMainboard[3]),
           DecodeChar (DatMainboard[4]));
-          
+//piccer 
+strcpy(thExchange.AktDisplay, LetterOrNumber (thExchange.AktDisplay));
+//Piccer:
+  if(strcmp(thExchange.AktDisplay, thExchange.OldDisplay) != 0)
+  {
+    HTTPClient http;
+    http.begin(TriggerURL); //Specify the URL
+    int httpCode = http.GET();                                        //Make the request
+     if (httpCode > 0) { //Check for the returning code
+  //      String payload = http.getString();
+  //      Serial.println(httpCode);
+  //      Serial.println(payload);
+         strcpy(thExchange.OldDisplay, thExchange.AktDisplay);
+      }
+     else {
+      Serial.println("Error on HTTP request");
+    }
+     http.end(); //Free the resources
+     //mqtt:
+//    client.publish(outTopic, thExchange.AktDisplay);
+  }
+
         if (DecodeChars_IsRun(&DatMainboard[1]))
           strcpy(thExchange.AktDisplay, "|~~|");
         else if (DecodeChars_IsRunReady(&DatMainboard[1]))
@@ -881,7 +917,72 @@ void Task0( void * pvParameters )
     delay(1);
   }
 }
+/*
+void callback(char* topic, byte* payload, unsigned int length) {   //callback includes topic and payload ( from which (topic) the payload is comming)
+  Serial.print("Message arrived [");
+  Serial.print(topic);
+  Serial.print("] ");
+  for (int i = 0; i < length; i++)
+  {
+    Serial.print((char)payload[i]);
+  }
+  if ((char)payload[0] == 'm' && (char)payload[1] == 'o' && (char)payload[1] == 'w')  //mow
+  {
+    Serial.println("mow start command received");
+    client.publish(outTopic, "mow starting");
+  }
+  else if ((char)payload[0] == 'h' && (char)payload[1] == 'o' && (char)payload[2] == 'm' && (char)payload[2] == 'e') //home
+  {
+    Serial.println(" return to home command received");
+    client.publish(outTopic, "returning to home");
+  }
+  else if ((char)payload[0] == 's' && (char)payload[1] == 't' && (char)payload[2] == 'o' && (char)payload[2] == 'p') //stop
+  {
+    Serial.println(" STOP command received");
+    client.publish(outTopic, "stopping");
+  }
+  // mqtt: to be continued...
+  Serial.println();
+}
 
+void reconnect() {
+  while (!client.connected()) {
+    Serial.println("Attempting MQTT connection...");
+    if (client.connect(MQTT_ID)) {
+      Serial.println("connected");
+      // Once connected, publish an announcement...
+      client.publish(outTopic, "LX790 connected to MQTT");
+      // ... and resubscribe
+      client.subscribe(inTopic);
+
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
+}
+
+void connectmqtt()
+{
+  client.connect(MQTT_ID);  // ESP will connect to mqtt broker with clientID
+  {
+    Serial.println("connected to MQTT");
+    // Once connected, publish an announcement...
+
+    // ... and resubscribe
+    client.subscribe(inTopic); //topic=Demo
+    client.publish(outTopic,  "connected to MQTT");
+
+    if (!client.connected())
+    {
+      reconnect();
+    }
+  }
+}
+*/
 void loop()
 {
   //Core 1
