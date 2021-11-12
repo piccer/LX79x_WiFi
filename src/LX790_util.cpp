@@ -31,6 +31,7 @@ struct
   {'U', 0x02 | 0x04 | 0x10 | 0x20 | 0x40},
   {'S', 0x01 | 0x02 | 0x08 | 0x20 | 0x40},
   {'b', 0x02 | 0x08 | 0x10 | 0x20 | 0x40},
+  {'t', 0x02 | 0x08 | 0x10 | 0x40 },
   {'H', 0x02 | 0x04 | 0x08 | 0x10 | 0x20 },
   {0, 0 }
 };
@@ -56,6 +57,26 @@ struct
   {"|ok|", "Mähbereit"},
   {"|~~|", "Mähen..."},
   {"----", "Mähen...Hindernis..."},
+  {nullptr,"null"}
+};
+
+struct
+{
+  const char * Display;
+  const char * Str;
+} const SegmentToLetter[] =
+{
+  {"5top", "STOP"},
+  {"1dLE", "IdLE"},
+  {"   -", "IdLE"},
+  {"  -1", "IdLE"},
+  {" -1d", "IdLE"},
+  {"-1dL", "IdLE"},
+  {"1dLE", "IdLE"},
+  {"dLE-", "IdLE"},
+  {"LE- ", "IdLE"},
+  {"E-  ", "IdLE"},
+  {"-   ", "IdLE"},
   {nullptr,"null"}
 };
 
@@ -86,7 +107,10 @@ int DecodeChars_IsRun (uint8_t raw[4])
     {
       if(raw[i] & 1<<j)
       {
+        if(raw[i]!=0x08)
+        {
         cnt++;
+        }
       }
     }
   }
@@ -123,6 +147,21 @@ uint8_t EncodeSeg (uint8_t c)
   }
   
   return (0x01 | 0x08 | 0x40);
+}
+
+const char * LetterOrNumber (char raw[4])
+{ // Funktion noch Umschreiben !!!
+  int i = 0;
+  
+  for (i = 0; SegmentToLetter[i].Display; i++)
+  {
+    if (!memcmp(SegmentToLetter[i].Display, raw, 4))
+    {
+      return SegmentToLetter[i].Str;
+    }
+  }
+  
+  return raw;
 }
 
 const char * DecodeMsg (char raw[4])
