@@ -66,17 +66,17 @@ struct
   const char * Str;
 } const SegmentToLetter[] =
 {
-  {"5top", "STOP"},
-  {"1dLE", "IdLE"},
-  {"   -", "IdLE"},
-  {"  -1", "IdLE"},
-  {" -1d", "IdLE"},
-  {"-1dL", "IdLE"},
-  {"1dLE", "IdLE"},
-  {"dLE-", "IdLE"},
-  {"LE- ", "IdLE"},
-  {"E-  ", "IdLE"},
-  {"-   ", "IdLE"},
+  {"5toP", "STOP"},
+  {"1dLE", "IDLE"},
+  {"   -", "IDLE"},
+  {"  -1", "IDLE"},
+  {" -1d", "IDLE"},
+  {"-1dL", "IDLE"},
+  {"1dLE", "IDLE"},
+  {"dLE-", "IDLE"},
+  {"LE- ", "IDLE"},
+  {"E-  ", "IDLE"},
+  {"-   ", "IDLE"},
   {nullptr,"null"}
 };
 
@@ -150,7 +150,7 @@ uint8_t EncodeSeg (uint8_t c)
 }
 
 const char * LetterOrNumber (char raw[4])
-{ // Funktion noch Umschreiben !!!
+{ 
   int i = 0;
   
   for (i = 0; SegmentToLetter[i].Display; i++)
