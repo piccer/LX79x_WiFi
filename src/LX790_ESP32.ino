@@ -135,6 +135,7 @@ char * GetStatustext (void)
     }
     else
     {
+      strcpy(thExchange.AktDisplay, LetterOrNumber (thExchange.AktDisplay));
       strcpy(statustxt, DecodeMsg (thExchange.AktDisplay));  
     }
   }
