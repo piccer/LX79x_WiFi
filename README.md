@@ -62,10 +62,16 @@ Um den ESP32 programmieren und flashen zu können, wurde in diesem Projekt die A
 ##### ESP32 flashen/Programm und Daten uploaden:
 1. Repository herunterladen und "ino" Projektdatei öffnen
 2. ESP32 Board per USB verbinden und passende COM Schnittstelle auswählen: 'Werkzeuge->Port'
-3. Im .ino Code die WiFi Zugangsdaten anpassen:
+3. Im .ino Code die WiFi Zugangsdaten und MQTT-Datenanpassen:
 ```c
 const char* ssid     = "DEINESSID";
 const char* password = "DEINPASSWORT";
+const char* mqtt_server = "192.168.1.8";
+const char* MQTT_ID = "LX790";
+const char* DisplayTopic = "Display";
+const char* rssiTopic = "RSSI";
+const char* StatusTopic = "Statustext";
+const char* inTopic = "inTopic";
 ```
 4. Ordner "data" mit 'Werkzeuge->ESP32 Sketch Data Upload' hochladen
 5. Seriellen Monitor öffnen
