@@ -47,7 +47,9 @@ const char* hostname = "LX790";
 const char* TriggerURL = "";
 const char* mqtt_server = "192.168.x.x";
 const char* MQTT_ID = "LX790";
-const char* outTopic = "outTopic";
+const char* DisplayTopic = "Display";
+const char* rssiTopic = "RSSI";
+const char* StatusTopic = "Statustext";
 const char* inTopic = "inTopic";
 
   WiFiClient espClient;
@@ -142,7 +144,7 @@ void publishSerialData(char *serialData){
   if (!client.connected()) {
     reconnect();
   }
-  client.publish(outTopic, serialData);
+  client.publish(StatusTopic, serialData);
 }
 
 char * GetStatustext (void)
@@ -891,7 +893,7 @@ void Task0( void * pvParameters )
 //piccer 
 strcpy(thExchange.AktDisplay, LetterOrNumber (thExchange.AktDisplay));
 //Piccer:
-  if(strcmp(thExchange.AktDisplay, thExchange.OldDisplay) != 0)
+  if(strcmp(thExchange.AktDisplay, thExchange.OldDisplay) != 0 &&strcmp(thExchange.OldDisplay, " OFF") !=0)
   {
     if (strstr (TriggerURL,"http://") != NULL)
     {
@@ -912,7 +914,15 @@ strcpy(thExchange.AktDisplay, LetterOrNumber (thExchange.AktDisplay));
     }
     //mqtt:
     if (strstr (mqtt_server,".") != NULL)
-    client.publish(outTopic, thExchange.AktDisplay);
+    {
+    client.publish(DisplayTopic, thExchange.AktDisplay);
+    client.publish(StatusTopic, GetStatustext());
+    char rssi[10];
+    int strength = WiFi.RSSI();
+    sprintf(rssi, "%i", strength);
+    client.publish(rssiTopic, rssi);
+    strcpy(thExchange.OldDisplay, thExchange.AktDisplay);
+    }
   }
 
         if (DecodeChars_IsRun(&DatMainboard[1]))
@@ -958,7 +968,7 @@ void callback(char* topic, byte* payload, unsigned int length) {   //callback in
   if ((char)payload[0] == 'm' && (char)payload[1] == 'o' && (char)payload[2] == 'w')  //mow
   {
     Serial.println("mow start command received");
-    client.publish(outTopic, "mow starting");
+    client.publish(StatusTopic, "mow starting");
       thExchange.cmdQue[thExchange.cmdQueIdx].T_start = millis();
       thExchange.cmdQue[thExchange.cmdQueIdx].T_end = millis()+200;
       thExchange.cmdQue[thExchange.cmdQueIdx].WebInButton[0] = BTN_BYTE1_START;
@@ -971,7 +981,7 @@ void callback(char* topic, byte* payload, unsigned int length) {   //callback in
   else if ((char)payload[0] == 'h' && (char)payload[1] == 'o' && (char)payload[2] == 'm' && (char)payload[3] == 'e') //home
   {
     Serial.println(" return to home command received");
-    client.publish(outTopic, "returning to home");
+    client.publish(StatusTopic, "returning to home");
           thExchange.cmdQue[thExchange.cmdQueIdx].T_start = millis();
       thExchange.cmdQue[thExchange.cmdQueIdx].T_end = millis()+200;
       thExchange.cmdQue[thExchange.cmdQueIdx].WebInButton[0] = BTN_BYTE1_HOME;
@@ -984,7 +994,7 @@ void callback(char* topic, byte* payload, unsigned int length) {   //callback in
   else if ((char)payload[0] == 's' && (char)payload[1] == 't' && (char)payload[2] == 'o' && (char)payload[3] == 'p') //stop
   {
     Serial.println(" STOP command received");
-    client.publish(outTopic, "stopping");
+    client.publish(StatusTopic, "stopping");
       thExchange.cmdQue[thExchange.cmdQueIdx].T_start = millis();
       thExchange.cmdQue[thExchange.cmdQueIdx].T_end = millis()+200;
       thExchange.cmdQue[thExchange.cmdQueIdx].WebInButton[0] = BTN_BYTE2_STOP;
@@ -1000,7 +1010,7 @@ void reconnect() {
     if (client.connect(MQTT_ID)) {
       Serial.println("connected");
       // Once connected, publish an announcement...
-      client.publish(outTopic, "LX790 connected to MQTT");
+      client.publish(StatusTopic, "LX790 connected to MQTT");
       // ... and resubscribe
       client.subscribe(inTopic);
 
@@ -1023,7 +1033,7 @@ void connectmqtt()
 
     // ... and resubscribe
     client.subscribe(inTopic); //topic=Demo
-    client.publish(outTopic,  "connected to MQTT");
+    client.publish(StatusTopic,  "connected to MQTT");
 
     if (!client.connected())
     {
