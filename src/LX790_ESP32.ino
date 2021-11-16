@@ -39,19 +39,21 @@
 #define BTN_BYTE1_START       0x02
 #define BTN_BYTE1_HOME        0x04
 #define BTN_BYTE2_STOP        0xFC
-
+int mqtt = 1;
 const char* ssid     = "ssid";
 const char* password = "pass";
 const char* hostname = "LX790";
-const char* TriggerURL = "http://FHEM/fhem?cmd=set%20ROBBI%20reread&XHR=1";
-//const char* mqtt_server = "192.168.1.x";
-//const char* MQTT_ID = "LX790";
-//const char* outTopic = "outTopic";
-//const char* inTopic = "inTopic";
+//const char* TriggerURL = "http://FHEM/fhem?cmd=set%20ROBBI%20reread&XHR=1";
+const char* TriggerURL = "";
+const char* mqtt_server = "192.168.x.x";
+const char* MQTT_ID = "LX790";
+const char* outTopic = "outTopic";
+const char* inTopic = "inTopic";
 
-//WiFiClient espClient;
-//PubSubClient client(espClient); //lib required for mqtt
+  WiFiClient espClient;
+  PubSubClient client(espClient); //lib required for mqtt
 
+  
 WebServer server1(80);
 
 WebServer *pserver[] = { &server1, nullptr };
@@ -107,7 +109,7 @@ void setup()
   memset(&thExchange, 0, sizeof thExchange);
 
   xTaskCreatePinnedToCore(
-    Task0,   /* Function to implement the task */
+    Task0,   /* Function to implement the task -> I2C, WiFi*/
     "Task0", /* Name of the task */
     10000,   /* Stack size in words */
     NULL,    /* Task input parameter */
@@ -118,13 +120,29 @@ void setup()
   delay(500);
 
   xTaskCreatePinnedToCore(
-    Task1,   /* Function to implement the task */
+    Task1,   /* Function to implement the task -> Webserver*/
     "Task1", /* Name of the task */
     10000,   /* Stack size in words */
     NULL,    /* Task input parameter */
     1,       /* Priority of the task 0 -> lowest */
     &hTask1, /* Task handle. */
     1);      /* Core where the task should run */
+  //mqtt:
+ if (strstr (mqtt_server,".") != NULL)
+ {
+        client.setServer(mqtt_server, 1883);//connecting to mqtt server
+        client.setCallback(callback);
+      //delay(5000);
+        connectmqtt();
+ }
+  //mqtt ende
+}
+
+void publishSerialData(char *serialData){
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.publish(outTopic, serialData);
 }
 
 char * GetStatustext (void)
@@ -392,8 +410,18 @@ void Task1( void * pvParameters )
       for (s=0; pserver[s]; s++)
       {
         pserver[s]->handleClient();
-        //hier könnte MQTT client aufgerufen werden...
-        //client.loop();
+      }
+      //hier könnte MQTT client aufgerufen werden...
+   if (strstr (mqtt_server,".") != NULL)
+      {
+      client.loop();
+      if (Serial.available() > 0) {
+      char mun[501];
+      memset(mun,0, 501);
+      Serial.readBytesUntil( '\n',mun,500);
+      publishSerialData(mun);
+   }
+
       }
     }
     delay(10);
@@ -464,12 +492,7 @@ void Task0( void * pvParameters )
         WiFi_WasConnected = 1;
         Serial.print  (F("WiFi successfully connected with IP: "));        
         Serial.println(WiFi.localIP());
-  //mqtt:
-//        client.setServer(mqtt_server, 1883);//connecting to mqtt server
-//        client.setCallback(callback);
-        //delay(5000);
-//        connectmqtt();
-  //mqtt ende
+
       }
       else if (millis() - Lst_WiFi_Status > 1000)
       {
@@ -870,21 +893,26 @@ strcpy(thExchange.AktDisplay, LetterOrNumber (thExchange.AktDisplay));
 //Piccer:
   if(strcmp(thExchange.AktDisplay, thExchange.OldDisplay) != 0)
   {
-    HTTPClient http;
-    http.begin(TriggerURL); //Specify the URL
-    int httpCode = http.GET();                                        //Make the request
-     if (httpCode > 0) { //Check for the returning code
+    if (strstr (TriggerURL,"http://") != NULL)
+    {
+      HTTPClient http;
+      http.begin(TriggerURL); //Specify the URL
+      int httpCode = http.GET();                                        //Make the request
+      if (httpCode > 0) { //Check for the returning code
   //      String payload = http.getString();
   //      Serial.println(httpCode);
   //      Serial.println(payload);
          strcpy(thExchange.OldDisplay, thExchange.AktDisplay);
       }
-     else {
+     else 
+      {
       Serial.println("Error on HTTP request");
-    }
+      }
      http.end(); //Free the resources
-     //mqtt:
-//    client.publish(outTopic, thExchange.AktDisplay);
+    }
+    //mqtt:
+    if (strstr (mqtt_server,".") != NULL)
+    client.publish(outTopic, thExchange.AktDisplay);
   }
 
         if (DecodeChars_IsRun(&DatMainboard[1]))
@@ -917,29 +945,50 @@ strcpy(thExchange.AktDisplay, LetterOrNumber (thExchange.AktDisplay));
     delay(1);
   }
 }
-/*
+
 void callback(char* topic, byte* payload, unsigned int length) {   //callback includes topic and payload ( from which (topic) the payload is comming)
-  Serial.print("Message arrived [");
+  Serial.print("MQTT-Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
+
   for (int i = 0; i < length; i++)
   {
     Serial.print((char)payload[i]);
   }
-  if ((char)payload[0] == 'm' && (char)payload[1] == 'o' && (char)payload[1] == 'w')  //mow
+  if ((char)payload[0] == 'm' && (char)payload[1] == 'o' && (char)payload[2] == 'w')  //mow
   {
     Serial.println("mow start command received");
     client.publish(outTopic, "mow starting");
+      thExchange.cmdQue[thExchange.cmdQueIdx].T_start = millis();
+      thExchange.cmdQue[thExchange.cmdQueIdx].T_end = millis()+200;
+      thExchange.cmdQue[thExchange.cmdQueIdx].WebInButton[0] = BTN_BYTE1_START;
+      thExchange.cmdQueIdx++;
+      thExchange.cmdQue[thExchange.cmdQueIdx].T_start = millis()+300;
+      thExchange.cmdQue[thExchange.cmdQueIdx].T_end = millis()+500;
+      thExchange.cmdQue[thExchange.cmdQueIdx].WebInButton[0] = BTN_BYTE1_OK;
+      thExchange.cmdQueIdx++;
   }
-  else if ((char)payload[0] == 'h' && (char)payload[1] == 'o' && (char)payload[2] == 'm' && (char)payload[2] == 'e') //home
+  else if ((char)payload[0] == 'h' && (char)payload[1] == 'o' && (char)payload[2] == 'm' && (char)payload[3] == 'e') //home
   {
     Serial.println(" return to home command received");
     client.publish(outTopic, "returning to home");
+          thExchange.cmdQue[thExchange.cmdQueIdx].T_start = millis();
+      thExchange.cmdQue[thExchange.cmdQueIdx].T_end = millis()+200;
+      thExchange.cmdQue[thExchange.cmdQueIdx].WebInButton[0] = BTN_BYTE1_HOME;
+      thExchange.cmdQueIdx++;
+      thExchange.cmdQue[thExchange.cmdQueIdx].T_start = millis()+300;
+      thExchange.cmdQue[thExchange.cmdQueIdx].T_end = millis()+500;
+      thExchange.cmdQue[thExchange.cmdQueIdx].WebInButton[0] = BTN_BYTE1_OK;
+      thExchange.cmdQueIdx++;
   }
-  else if ((char)payload[0] == 's' && (char)payload[1] == 't' && (char)payload[2] == 'o' && (char)payload[2] == 'p') //stop
+  else if ((char)payload[0] == 's' && (char)payload[1] == 't' && (char)payload[2] == 'o' && (char)payload[3] == 'p') //stop
   {
     Serial.println(" STOP command received");
     client.publish(outTopic, "stopping");
+      thExchange.cmdQue[thExchange.cmdQueIdx].T_start = millis();
+      thExchange.cmdQue[thExchange.cmdQueIdx].T_end = millis()+200;
+      thExchange.cmdQue[thExchange.cmdQueIdx].WebInButton[0] = BTN_BYTE2_STOP;
+      thExchange.cmdQueIdx++;
   }
   // mqtt: to be continued...
   Serial.println();
@@ -982,7 +1031,8 @@ void connectmqtt()
     }
   }
 }
-*/
+
+
 void loop()
 {
   //Core 1
