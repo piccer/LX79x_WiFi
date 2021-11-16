@@ -54,6 +54,9 @@ struct
   {"-E8-", "Es dauert zu lange, bis der Robi zur Ladestation zurückkehrt."},
   {"-EE-", "Unbekannter Fehler."},
   {"IdLE", "Warte auf start"},
+  {"IDLE", "Warte auf start"},
+  {" OFF", "Ausschalten"},
+  {"STOP", "Gestoppt"},
   {"|ok|", "Mähbereit"},
   {"|~~|", "Mähen..."},
   {"----", "Mähen...Hindernis..."},
@@ -77,6 +80,13 @@ struct
   {"LE- ", "IDLE"},
   {"E-  ", "IDLE"},
   {"-   ", "IDLE"},
+  {"   O", " OFF"},
+  {"  OF", " OFF"},
+  {" OFF", " OFF"},
+  {"OFF ", " OFF"},
+  {"OF  ", " OFF"},
+  {"F   ", " OFF"},
+
   {nullptr,"null"}
 };
 
