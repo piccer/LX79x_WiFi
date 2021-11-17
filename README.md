@@ -53,7 +53,7 @@ Um den ESP32 programmieren und flashen zu können, wurde in diesem Projekt die A
 1. Installation der aktuellen Arduino IDE
 2. ESP32 Core installieren (https://randomnerdtutorials.com/installing-the-esp32-board-in-arduino-ide-windows-instructions/)
 3. Boardtyp auswählen: 'Werkzeuge->Board->DOIT ESP32 DEVKIT V1'
-4. CRC Bibliothek ergänzen: 'Werkzeuge->Bibliotheken verwalten...->CRC (Rob Tillaart)'
+4. CRC Bibliotheken ergänzen: 'Werkzeuge->Bibliotheken verwalten...->CRC (Rob Tillaart)' und 'PubSubClient'
 5. Filesystem Uploader: (https://randomnerdtutorials.com/install-esp32-filesystem-uploader-arduino-ide/)
   1. Download ESP32FS ZIP: https://github.com/me-no-dev/arduino-esp32fs-plugin/releases/
   2. ZIP direkt in "c:\Program Files (x86)\Arduino\tools\" entpacken
@@ -77,11 +77,12 @@ Wenn MQTT nicht genutzt werden soll, dann ist
 ```c
 mqtt_server = "";
 ```
-zu setzten. Das gleiche gilt für
+zu setzen. Das gleiche gilt für
 ```c
 const char* TriggerURL = "http://FHEM/fhem?cmd=set%20ROBBI%20reread&XHR=1";
 ```
 wenn diese gesetzt ist, wird sie aufgerufen, sobald sich das Display am LX790 ändert.
+
 4. Ordner "data" mit 'Werkzeuge->ESP32 Sketch Data Upload' hochladen
 5. Seriellen Monitor öffnen
 6. Projekt kompilieren und hochladen
