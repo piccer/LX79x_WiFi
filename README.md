@@ -81,7 +81,7 @@ zu setzen. Das gleiche gilt für
 ```c
 const char* TriggerURL = "http://FHEM/fhem?cmd=set%20ROBBI%20reread&XHR=1";
 ```
-wenn diese gesetzt ist, wird sie aufgerufen, sobald sich das Display am LX790 ändert.
+wenn diese URL gesetzt ist, wird sie aufgerufen, sobald sich das Display am LX790 ändert.
 
 4. Ordner "data" mit 'Werkzeuge->ESP32 Sketch Data Upload' hochladen
 5. Seriellen Monitor öffnen
@@ -94,6 +94,11 @@ Das Webinterface kann direkt mit der IP Adresse aufgerufen werden:
 <p align="center">
   <img src=pic/Web_without_mower.png width="350"/>
 </p>
+
+#### MQTT
+- Subsribe zur Variable "inTopic" für Befehle
+- aktuell funktionieren die Befehle "mow", "home"(entsprechen "startmow" und "homemow") und "stop"
+- Publishing von "Display", "RSSI" und "Status" (Klartext)
 
 #### HTTP Anfragemethoden
 ##### Befehle Senden
