@@ -75,7 +75,7 @@ const char* inTopic = "inTopic";
 ```
 Wenn MQTT nicht genutzt werden soll, dann ist 
 ```c
-mqtt_server = "";
+const char* mqtt_server = "";
 ```
 zu setzen. Das gleiche gilt für
 ```c
