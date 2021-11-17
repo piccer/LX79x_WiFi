@@ -73,6 +73,15 @@ const char* rssiTopic = "RSSI";
 const char* StatusTopic = "Statustext";
 const char* inTopic = "inTopic";
 ```
+Wenn MQTT nicht genutzt werden soll, dann ist 
+```c
+mqtt_server = "";
+```
+zu setzten. Das gleiche gilt für
+```c
+const char* TriggerURL = "http://FHEM/fhem?cmd=set%20ROBBI%20reread&XHR=1";
+```
+wenn diese gesetzt ist, wird sie aufgerufen, sobald sich das Display am LX790 ändert.
 4. Ordner "data" mit 'Werkzeuge->ESP32 Sketch Data Upload' hochladen
 5. Seriellen Monitor öffnen
 6. Projekt kompilieren und hochladen
