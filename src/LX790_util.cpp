@@ -85,6 +85,11 @@ struct
   {" OFF", " OFF"},
   {"OFF ", " OFF"},
   {"OF  ", " OFF"},
+  {"   0", " OFF"},
+  {"  0F", " OFF"},
+  {" 0FF", " OFF"},
+  {"0FF ", " OFF"},
+  {"0F  ", " OFF"},
   {"F   ", " OFF"},
 
   {nullptr,"null"}
