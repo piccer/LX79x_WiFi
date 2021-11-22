@@ -39,7 +39,7 @@
 #define BTN_BYTE1_START       0x02
 #define BTN_BYTE1_HOME        0x04
 #define BTN_BYTE2_STOP        0xFC
-int mqtt = 1;
+
 const char* ssid     = "ssid";
 const char* password = "pass";
 const char* hostname = "LX790";
@@ -50,11 +50,13 @@ const char* MQTT_ID = "LX790";
 const char* DisplayTopic = "Display";
 const char* rssiTopic = "RSSI";
 const char* StatusTopic = "Statustext";
+const char* batteryTopic = "battery";
 const char* inTopic = "inTopic";
+
 
   WiFiClient espClient;
   PubSubClient client(espClient); //lib required for mqtt
-
+unsigned long OFF_time = 0;
   
 WebServer server1(80);
 
@@ -77,8 +79,11 @@ static struct
   int     Cnt_err;
   int     Cnt_timeout;
   char    point;
+  int     aktualisieren;
   int     bat;
   int     batCharge;
+  char    battery[8];
+  char    Statustext[100];
   struct
   {
     unsigned long T_start;
@@ -414,17 +419,18 @@ void Task1( void * pvParameters )
         pserver[s]->handleClient();
       }
       //hier könnte MQTT client aufgerufen werden...
-   if (strstr (mqtt_server,".") != NULL)
+      if (strstr (mqtt_server,".") != NULL)
       {
-      client.loop();
-      if (Serial.available() > 0) {
-      char mun[501];
-      memset(mun,0, 501);
-      Serial.readBytesUntil( '\n',mun,500);
-      publishSerialData(mun);
-   }
-
+        client.loop();
+        if (Serial.available() > 0) 
+        {
+          char mun[501];
+          memset(mun,0, 501);
+          Serial.readBytesUntil( '\n',mun,500);
+          publishSerialData(mun);
+        }
       }
+      publishdata();
     }
     delay(10);
   }
@@ -867,12 +873,12 @@ void Task0( void * pvParameters )
         if (Lst_bat != bat)
         {
           if (bat > 1 &&
-              Lst_bat < bat)
+              Lst_bat < bat)   
           {
             Lst_bat_charge = millis();
           }
 
-          Lst_bat = bat;
+          Lst_bat = bat;      
         }
         
         xSemaphoreTake(SemMutex, 1);
@@ -890,48 +896,29 @@ void Task0( void * pvParameters )
           DecodeChar (DatMainboard[2]),
           DecodeChar (DatMainboard[3]),
           DecodeChar (DatMainboard[4]));
-//piccer 
-strcpy(thExchange.AktDisplay, LetterOrNumber (thExchange.AktDisplay));
-//Piccer:
-  if(strcmp(thExchange.AktDisplay, thExchange.OldDisplay) != 0 &&strcmp(thExchange.OldDisplay, " OFF") !=0)
-  {
-    if (strstr (TriggerURL,"http://") != NULL)
-    {
-      HTTPClient http;
-      http.begin(TriggerURL); //Specify the URL
-      int httpCode = http.GET();                                        //Make the request
-      if (httpCode > 0) { //Check for the returning code
-  //      String payload = http.getString();
-  //      Serial.println(httpCode);
-  //      Serial.println(payload);
-         strcpy(thExchange.OldDisplay, thExchange.AktDisplay);
-      }
-     else 
-      {
-      Serial.println("Error on HTTP request");
-      }
-     http.end(); //Free the resources
-    }
-    //mqtt:
-    if (strstr (mqtt_server,".") != NULL)
-    {
-    client.publish(DisplayTopic, thExchange.AktDisplay);
-    client.publish(StatusTopic, GetStatustext());
-    char rssi[10];
-    int strength = WiFi.RSSI();
-    sprintf(rssi, "%i", strength);
-    client.publish(rssiTopic, rssi);
-    strcpy(thExchange.OldDisplay, thExchange.AktDisplay);
-    }
-  }
+
 
         if (DecodeChars_IsRun(&DatMainboard[1]))
           strcpy(thExchange.AktDisplay, "|~~|");
         else if (DecodeChars_IsRunReady(&DatMainboard[1]))
           strcpy(thExchange.AktDisplay, "|ok|");
         
-        if (thExchange.batCharge && thExchange.AktDisplay[0] == 0)
+        if (thExchange.batCharge && thExchange.AktDisplay[0] == 0) //hier stimmt noch was nicht, Robi springt beim Ausschalten auf Chrg???
           strcpy(thExchange.AktDisplay, "Chrg");
+
+//piccer: Display beruhigen:
+        strcpy(thExchange.AktDisplay, LetterOrNumber(thExchange.AktDisplay));
+
+        if(strcmp(thExchange.AktDisplay, thExchange.OldDisplay) != 0 && strcmp(thExchange.OldDisplay, " OFF") !=0)
+        {
+          thExchange.aktualisieren = 1;
+        }
+        if (strcmp(thExchange.OldDisplay, " OFF") == 0 && millis() > OFF_time + 2000)
+        { //Robi aus, ESP nach 2 Sekunden noch an -> wir stehen in der Station...
+          strcpy(thExchange.AktDisplay, "Chrg");
+          strcpy(thExchange.OldDisplay, "");
+          thExchange.aktualisieren = 1;
+        }
 
         //cnt;seg1;seg2;seg3;seg4;point;lock;clock;bat
         memset(thExchange.WebOutDisplay, 0, sizeof thExchange.WebOutDisplay);
@@ -1013,7 +1000,7 @@ void reconnect() {
       client.publish(StatusTopic, "LX790 connected to MQTT");
       // ... and resubscribe
       client.subscribe(inTopic);
-
+      thExchange.aktualisieren = 1;
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -1034,11 +1021,65 @@ void connectmqtt()
     // ... and resubscribe
     client.subscribe(inTopic); //topic=Demo
     client.publish(StatusTopic,  "connected to MQTT");
-
+    thExchange.aktualisieren = 1;
     if (!client.connected())
     {
       reconnect();
     }
+  }
+}
+
+void publishdata()
+{
+  if (thExchange.aktualisieren == 1)
+  {
+    if (strstr (TriggerURL,"http://") != NULL)
+    {
+      HTTPClient http;
+      http.begin(TriggerURL); //Specify the URL
+      int httpCode = http.GET();                                        //Make the request
+      if (httpCode > 0) { //Check for the returning code
+  //      String payload = http.getString();
+  //      Serial.println(httpCode);
+  //      Serial.println(payload);
+         strcpy(thExchange.OldDisplay, thExchange.AktDisplay);
+      }
+     else 
+      {
+      Serial.println("Error on HTTP request");
+      }
+     http.end(); //Free the resources
+    }
+    //mqtt:
+    if (strstr (mqtt_server,".") != NULL)
+    {
+      const char* BatState[] = {"off", "empty", "low", "mid", "full", "charging"};
+      int IdxBatState = 0;
+      // xSemaphoreTake(SemMutex, 1);
+      if (thExchange.batCharge)
+        IdxBatState = 5; /*charging*/
+      else
+        IdxBatState = thExchange.bat+1;
+      sprintf(thExchange.battery, "%s", BatState[IdxBatState]);
+      client.publish(DisplayTopic, thExchange.AktDisplay);
+      if (strcmp(thExchange.AktDisplay, " OFF") == 0)
+      {
+        OFF_time = millis();
+        client.publish(StatusTopic, "Aus");
+       // client.publish(batteryTopic, "full");
+      }
+      else
+      {
+        client.publish(StatusTopic, GetStatustext());
+        client.publish(batteryTopic, thExchange.battery);
+      }
+      char rssi[10];
+      int strength = WiFi.RSSI();
+      sprintf(rssi, "%i", strength);
+      client.publish(rssiTopic, rssi);
+      strcpy(thExchange.OldDisplay, thExchange.AktDisplay);
+    }
+    thExchange.aktualisieren = 0;
   }
 }
 
