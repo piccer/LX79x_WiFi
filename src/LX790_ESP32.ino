@@ -52,8 +52,11 @@ const char* rssiTopic = "RSSI";
 const char* StatusTopic = "Statustext";
 const char* batteryTopic = "battery";
 const char* inTopic = "inTopic";
-
-
+int pin1 = 0;
+int pin2 = 0;
+int pin3 = 0;
+int pin4 = 0;
+static char statustxtOLD[100] = "";
   WiFiClient espClient;
   PubSubClient client(espClient); //lib required for mqtt
 unsigned long OFF_time = 0;
@@ -166,13 +169,25 @@ char * GetStatustext (void)
   {
     if (thExchange.batCharge)
     {
-      strcpy(statustxt, "Laden...");  
+      strcpy(statustxt, "Laden...");
     }
     else
     {
       strcpy(statustxt, DecodeMsg (thExchange.AktDisplay));  
     }
   }
+  if (strcmp(statustxt, statustxtOLD) != 0)
+    {
+      if (strcmp(statustxtOLD, "Mähen...Hindernis...") == 0 && strcmp(statustxt, "...") == 0 )
+      {
+        thExchange.aktualisieren = 0; //Statustext muss nicht so oft herumblinken
+      }
+      else
+      {
+      thExchange.aktualisieren = 1;
+      }
+    }
+  strcpy(statustxtOLD, statustxt);
   return statustxt; 
 }
 
@@ -911,13 +926,13 @@ void Task0( void * pvParameters )
 
         if(strcmp(thExchange.AktDisplay, thExchange.OldDisplay) != 0 && strcmp(thExchange.OldDisplay, " OFF") !=0)
         {
-          thExchange.aktualisieren = 1;
+ //         thExchange.aktualisieren = 1;
         }
         if (strcmp(thExchange.OldDisplay, " OFF") == 0 && millis() > OFF_time + 2000)
         { //Robi aus, ESP nach 2 Sekunden noch an -> wir stehen in der Station...
           strcpy(thExchange.AktDisplay, "Chrg");
           strcpy(thExchange.OldDisplay, "");
-          thExchange.aktualisieren = 1;
+ //         thExchange.aktualisieren = 1;
         }
 
         //cnt;seg1;seg2;seg3;seg4;point;lock;clock;bat
@@ -1053,6 +1068,10 @@ void publishdata()
     //mqtt:
     if (strstr (mqtt_server,".") != NULL)
     {
+          if (!client.connected())
+         {
+         reconnect();
+         }
       const char* BatState[] = {"off", "empty", "low", "mid", "full", "charging"};
       int IdxBatState = 0;
       // xSemaphoreTake(SemMutex, 1);
@@ -1083,7 +1102,58 @@ void publishdata()
   }
 }
 
+void pinset()
+{
+  client.publish(StatusTopic, "pinset...");
+  int i = 0;
+    for (i = 0; pin2; i++)
+  {
+      thExchange.cmdQue[thExchange.cmdQueIdx].T_start = millis();
+      thExchange.cmdQue[thExchange.cmdQueIdx].T_end = millis()+200;
+      thExchange.cmdQue[thExchange.cmdQueIdx].WebInButton[0] = BTN_BYTE1_START;
+      thExchange.cmdQueIdx++;
+  }
+      thExchange.cmdQue[thExchange.cmdQueIdx].T_start = millis()+300;
+      thExchange.cmdQue[thExchange.cmdQueIdx].T_end = millis()+500;
+      thExchange.cmdQue[thExchange.cmdQueIdx].WebInButton[0] = BTN_BYTE1_OK;
+      thExchange.cmdQueIdx++;
 
+    for (i = 0; pin2; i++)
+  {
+      thExchange.cmdQue[thExchange.cmdQueIdx].T_start = millis();
+      thExchange.cmdQue[thExchange.cmdQueIdx].T_end = millis()+200;
+      thExchange.cmdQue[thExchange.cmdQueIdx].WebInButton[0] = BTN_BYTE1_START;
+      thExchange.cmdQueIdx++;
+  }
+      thExchange.cmdQue[thExchange.cmdQueIdx].T_start = millis()+300;
+      thExchange.cmdQue[thExchange.cmdQueIdx].T_end = millis()+500;
+      thExchange.cmdQue[thExchange.cmdQueIdx].WebInButton[0] = BTN_BYTE1_OK;
+      thExchange.cmdQueIdx++;
+
+    for (i = 0; pin3; i++)
+  {
+      thExchange.cmdQue[thExchange.cmdQueIdx].T_start = millis();
+      thExchange.cmdQue[thExchange.cmdQueIdx].T_end = millis()+200;
+      thExchange.cmdQue[thExchange.cmdQueIdx].WebInButton[0] = BTN_BYTE1_START;
+      thExchange.cmdQueIdx++;
+  }
+      thExchange.cmdQue[thExchange.cmdQueIdx].T_start = millis()+300;
+      thExchange.cmdQue[thExchange.cmdQueIdx].T_end = millis()+500;
+      thExchange.cmdQue[thExchange.cmdQueIdx].WebInButton[0] = BTN_BYTE1_OK;
+      thExchange.cmdQueIdx++;
+
+    for (i = 0; pin4; i++)
+  {
+      thExchange.cmdQue[thExchange.cmdQueIdx].T_start = millis();
+      thExchange.cmdQue[thExchange.cmdQueIdx].T_end = millis()+200;
+      thExchange.cmdQue[thExchange.cmdQueIdx].WebInButton[0] = BTN_BYTE1_START;
+      thExchange.cmdQueIdx++;
+  }
+      thExchange.cmdQue[thExchange.cmdQueIdx].T_start = millis()+300;
+      thExchange.cmdQue[thExchange.cmdQueIdx].T_end = millis()+500;
+      thExchange.cmdQue[thExchange.cmdQueIdx].WebInButton[0] = BTN_BYTE1_OK;
+      thExchange.cmdQueIdx++;
+}
 void loop()
 {
   //Core 1
