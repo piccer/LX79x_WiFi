@@ -19,17 +19,17 @@ struct
   {'9', 0x01 | 0x02 | 0x04 | 0x08 | 0x20 | 0x40}, 
   {'E', 0x01 | 0x02 | 0x08 | 0x10 | 0x40 },
   {'r', 0x08 | 0x10 },
-  {'o', 0x08 | 0x20 | 0x40 | 0x10},
+  {'o', 0x08 | 0x20 | 0x40 | 0x10},                  //off -> "0"
   {'F', 0x01 | 0x02 | 0x08 | 0x10},
   {'-', 0x08 },
   {'A', 0x01 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 },
-  {'I', 0x20 | 0x04 }, // special - wie '1'
+  {'I', 0x20 | 0x04 },                               // !! wie '1'
   {'d', 0x04 | 0x08 | 0x10 | 0x20 | 0x40 },
   {'L', 0x02 | 0x10 | 0x40 },
   {'P', 0x01 | 0x02 | 0x04 | 0x08 | 0x10 },
   {'n', 0x10 | 0x08 | 0x20 },
   {'U', 0x02 | 0x04 | 0x10 | 0x20 | 0x40},
-  {'S', 0x01 | 0x02 | 0x08 | 0x20 | 0x40},
+  {'S', 0x01 | 0x02 | 0x08 | 0x20 | 0x40},           // !! wie '5'
   {'b', 0x02 | 0x08 | 0x10 | 0x20 | 0x40},
   {'t', 0x02 | 0x08 | 0x10 | 0x40 },
   {'H', 0x02 | 0x04 | 0x08 | 0x10 | 0x20 },
@@ -57,6 +57,7 @@ struct
   {"IDLE", "Warte auf start"},
   {" OFF", "Ausschalten"},
   {"STOP", "Gestoppt"},
+  {"StbY", "Standby" },
   {"|ok|", "Mähbereit"},
   {"|~~|", "Mähen..."},
   {"----", "Mähen...Hindernis..."},
@@ -124,7 +125,9 @@ int DecodeChars_IsRun (uint8_t raw[4])
       {
         if(raw[i]!=0x08)
         {
-        cnt++;
+		  //0x08 ignorieren wg. blinken zwischen "Mähen" und "warte auf Start"
+          //Der mittlere Strich der 7-Segment-Anzeige ist beim Mähen niemals an	
+          cnt++;
         }
       }
     }
@@ -136,8 +139,8 @@ int DecodeChars_IsRun (uint8_t raw[4])
 int DecodeChars_IsRunReady (uint8_t raw[4])
 {
   int i = 0;
-  const uint8_t readyPad[4] = { 0x01|0x02|0x10|0x40,
-                                0x01|0x40,
+  const uint8_t readyPad[4] = { 0x01|0x02|0x10|0x40,   //   _ _ _ _
+                                0x01|0x40,             //  |_ _ _ _|
                                 0x01|0x40,
                                 0x01|0x04|0x20|0x40 };
   
@@ -224,11 +227,14 @@ const char * DecodeMsg (char raw[4])
 //    Schloss    0x08
 //    Uhr        0x04
 //    Punkte     0x01 und 0x02
+//    WiFi       0x10
 //
 //    Batterie Gehäuse   0x20
 //    Batterie Str. re   0x60
+//    Batterie Str. mi   0xE0
+//    Batterie Str. li   0x01
 //  
-//  BR:    Helligkeit (0x01 bis 0xC9 / 1 - 201)
+//  BR:    Helligkeit (0x01 bis 0xC8 / 1 - 200)
 //
 //  CS: 2 Byte Checksumme
 //  
